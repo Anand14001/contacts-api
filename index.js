@@ -1,87 +1,78 @@
 const express = require('express')
+const mongoose = require('mongoose')
+const Contact = require('./models/contacts')
 
 const app = express()
 
 app.use(express.json())
 
-const contacts = [
-  {
-    id: "1",
-    name: "Rohit Verma",
-    email: "rohit.verma@example.com",
-    phone: "9876543210",
-    createdAt: new Date("2025-10-20T10:15:00Z").toISOString()
-  },
-  {
-    id: "2",
-    name: "Priya Sharma",
-    email: "priya.sharma@example.com",
-    phone: "9123456780",
-    createdAt: new Date("2025-10-21T09:30:00Z").toISOString()
-  },
-  {
-    id: "3",
-    name: "Rahul Mehta",
-    email: "rahul.mehta@example.com",
-    phone: "9871234567",
-    createdAt: new Date("2025-10-22T08:00:00Z").toISOString()
-  },
-  {
-    id: "4",
-    name: "Sneha Reddy",
-    email: "sneha.reddy@example.com",
-    phone: "9765432180",
-    createdAt: new Date("2025-10-19T14:45:00Z").toISOString()
-  },
-  {
-    id: "5",
-    name: "Arjun Patel",
-    email: "arjun.patel@example.com",
-    phone: "9812345678",
-    createdAt: new Date("2025-10-18T16:10:00Z").toISOString()
-  }
-];
+const uri = "mongodb+srv://anand14901:wXvLTncXknWKyVgZ@cluster0.uvw6nph.mongodb.net/contacts-db?retryWrites=true&w=majority&appName=Cluster0";
+
+mongoose.connect(uri)
+    .then(()=> console.log('connected to database!'))
+    .catch(error => console.log('error while connecting to database', error))
+
 
 
 app.get('/', (request, response) => {
     response.send('<h1>Welcome to contacts api</h1>')
 })
 
-app.get('/api/contacts', (request, response) => {
-   return response.json(contacts)
+app.get('/api/contacts', async(request, response) => {
+    try{
+        const contacts = await Contact.find({})
+        return response.json(contacts)
+    }catch(error){
+        return response.status(500).json({
+            error: 'Server error',
+            message: 'Could not fetch contacts'
+        })
+    }
 })
 
-app.get('/api/contacts/:id', (request, response) => {
-    const id = request.params.id;
-    const contact = contacts.find(contact => contact.id === id)
-    if(contact){
-        response.json(contact)
-    }else{
-           return response.status(404).json({
-                error: 'Contact not found',
-                message: `Contact with id ${id} does not exist`
+app.get('/api/contacts/:id', async(request, response) => {
+    try{
+        const id = request.params.id;
+        const contacts = await Contact.findById(id)
+        if(contacts){
+            response.json(contacts)
+        }else{
+            return response.status(404).json({
+                    error: 'Contact not found',
+                    message: `Contact with id ${id} does not exist`
+                })
+        }
+    }catch(error){
+            return response.status(400).json({
+                error: 'Invalid ID',
+                message: 'The provided ID is not valid'
             })
     }
 })
 
-app.delete('/api/contacts/:id', (request, response) => {
-    const id = request.params.id
-    const contact = contacts.find(contact => contact.id === id)
+app.delete('/api/contacts/:id', async(request, response) => {
+    try{
+        const id = request.params.id
+        const contact = await Contact.findByIdAndDelete(id)
 
-    if (contact){
-        const contactIndex = contacts.findIndex(contact => contact.id === id)
-        contacts.splice(contactIndex, 1)
-        response.status(204).end()
-    }else{
-           return response.status(404).json({
-                error: 'Contact not found',
-                message: `Contact with id ${id} does not exist`
+        if (contact){
+            response.status(204).end()
+        }else{
+            return response.status(404).json({
+                    error: 'Contact not found',
+                    message: `Contact with id ${id} does not exist`
+                })
+        }
+    }catch(error){
+            return response.status(400).json({
+                error: 'Invalid ID',
+                message: 'The provided ID is not valid'
             })
     }
 })
 
-
-app.post('/api/contacts/', (request, response) => {
+app.post('/api/contacts/', async(request, response) => {
+    try{
     const {name, email, phone} = request.body
 
     if (!name || !email || !phone) {
@@ -91,90 +82,67 @@ app.post('/api/contacts/', (request, response) => {
         })
     }
 
-    const existingContact = contacts.find(contact => contact.email === email || contact.phone === phone)
-
-    if(existingContact){
-        if(existingContact.email === email){
-           return response.status(409).json({
-                error: 'Duplicate email',
-                message: 'A contact with this email already exists'
-            })
-        }else if(existingContact.phone === phone){
-            return response.status(409).json({
-                error: 'Duplicate phone',
-                message: 'A contact with this phone number already exists'
-            })
-        }
-    }
-
-    const newContact = {
-        id: String(contacts.length +1),
+    const newContact = new Contact({
         name: name,
         email:email,
         phone:phone,
-        createdAt: new Date().toISOString()
-    }
+    })
 
-    contacts.push(newContact)
-    return response.status(201).json(newContact)
+    const savedContact = await newContact.save()
+    return response.status(201).json(savedContact)
+}catch(error){
+    if(error.code === 11000){
+        const field = Object.keys(error.keyPattern)[0]
+            return response.status(409).json({
+                error: `Duplicate ${field}`,
+                message: `A contact with this ${field} already exists`
+            })
+    }else{
+        return response.status(400).json({
+            error: 'Validation error',
+            message: error.message
+        })
+    }
+}
 })
 
-app.put('/api/contacts/:id', (request, response) => {
+app.put('/api/contacts/:id', async(request, response) => {
+    try{
     const id = request.params.id
     const {name, email, phone} = request.body
 
-    const contactIndex = contacts.findIndex(contact => contact.id === id)
+    const updatedContact = await Contact.findByIdAndUpdate(
+        id,
+        {
+            name: name.trim(),
+            email: email.toLowerCase().trim(),
+            phone: phone.trim(),
+            lastUpdatedAt: new Date()
+        },
+        { new: true, runValidators: true }
+    )
 
-    if(contactIndex != -1){
-        const currentContact = contacts[contactIndex]
-
-        const updatedName = currentContact.name || name
-        const updatedEmail = currentContact.email || email
-        const updatedPhone = currentContact.phone || phone
-
-        if(!updatedName.trim() || !updatedEmail.trim() || !updatedPhone.trim()){
-            return response.status(400).json({
-                error:"Invalid Fields",
-                message:"Name, email, and phone cannot be empty"
-            })
-        }
-
-        const duplicateEmail = contacts.find(contact => 
-            contact.email === updatedEmail && contact.id !== id
-        )
-        const duplicatePhone = contacts.find(contact => 
-            contact.phone === updatedPhone && contact.id !== id
-        )
-
-        if (duplicateEmail) {
-            return response.status(409).json({
-                error: 'Duplicate email',
-                message: 'Another contact with this email already exists'
-            })
-        }
-        if (duplicatePhone) {
-            return response.status(409).json({
-                error: 'Duplicate phone number',
-                message: 'Another contact with this phone number already exists'
-            })
-        }
-
-        const updatedContact = {
-            ...currentContact,
-            name: currentContact.name.trim(),
-            email: currentContact.email.toLowerCase().trim(),
-            phone: currentContact.phone.trim(),
-            lastUpdated: new Date().toISOString()
-        }
-
-        contacts[contactIndex] = updatedContact
-
+    if(updatedContact){
         return response.json(updatedContact)
     }else{
         return response.status(404).json({
             error: 'Contact not found',
             message: `Contact with id ${id} does not exist`
         })
+    }
+    }catch(error){
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern)[0]
+            return response.status(409).json({
+                error: `Duplicate ${field}`,
+                message: `Another contact with this ${field} already exists`
+            })
+        } else {
+            return response.status(400).json({
+                error: 'Validation error',
+                message: error.message
+            })
+        }
     }
 
 })
