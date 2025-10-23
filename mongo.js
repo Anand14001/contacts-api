@@ -1,10 +1,27 @@
+/**
+ * File Name: mongo.js
+ * File Type: Database Seeding Script
+ * Project: Contacts Management REST API
+ * Description: 
+ * Database seeding utility for populating MongoDB with sample contact data
+ * Used for development, testing, and demonstration purposes
+ * Clears existing data and inserts predefined contact records
+ * Created Date: [22-10-2025]
+ * Last Updated Date: [23-10-2025]
+ * Author: Anand Boojesh R S
+ */
+
+// Load environment variables from .env file
 require('dotenv').config()
 
+// Import required dependencies
 const mongoose = require('mongoose');
 const contacts = require('./models/contacts');
 
+// Get MongoDB connection URI from environment variables
 const uri = process.env.MONGO_URI
 
+//Sample Contact Data
 const contactsData = [
   {
     name: "Rohit Verma",
@@ -37,6 +54,12 @@ const contactsData = [
     createdAt: new Date("2025-10-18T16:10:00Z")
   }
 ];
+
+/**
+ * Main Database Update Function
+ * Handles the complete process of seeding the database with sample data
+ * Follows best practices with proper error handling and resource cleanup
+ */
 
 async function updateDatabase() {
     try{

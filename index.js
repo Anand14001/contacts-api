@@ -1,14 +1,32 @@
+/**
+ * File Name: index.js
+ * File Type: Express.js Server Application
+ * Project: Contacts Management REST API
+ * Description: 
+ * Main server file for Contacts Management REST API
+ * Handles routing, middleware, database connections, and API endpoints
+ * Implements CRUD operations for contact management with proper error handling
+ * Created Date: [22-10-2025]
+ * Last Updated Date: [23-10-2025]
+ * Author: Anand Boojesh R S
+ */
+
+// Import required dependencies
 const express = require('express')
 const mongoose = require('mongoose')
 const Contact = require('./models/contacts')
 
+// Load environment variables from .env file
 require('dotenv').config()
 
+// Initialize Express application
 const app = express()
 
+// Middleware to parse JSON request bodies
 app.use(express.json())
 
-const uri = process.env.MONGO_URI;
+//Database Connection Configuration
+const uri = process.env.NODE_ENV === 'test' ? process.env.TEST_MONGO_URI : process.env.MONGO_URI
 
 mongoose.connect(uri)
     .then(()=> console.log('connected to database!'))
@@ -173,7 +191,15 @@ app.put('/api/contacts/:id', async(request, response) => {
 
 })
 
+/**
+* Server Configuration and Startup
+**/
 const PORT = 3001
 
-app.listen(PORT)
-console.log(`server connected to port: ${PORT}` )
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => {
+        console.log(`server connected to port: ${PORT}`);
+    });
+}
+
+module.exports = app
