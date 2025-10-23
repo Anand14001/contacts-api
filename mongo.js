@@ -1,7 +1,9 @@
+require('dotenv').config()
+
 const mongoose = require('mongoose');
 const contacts = require('./models/contacts');
 
-const uri = "mongodb+srv://anand14901:wXvLTncXknWKyVgZ@cluster0.uvw6nph.mongodb.net/contacts-db?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGO_URI
 
 const contactsData = [
   {

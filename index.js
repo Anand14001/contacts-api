@@ -2,11 +2,13 @@ const express = require('express')
 const mongoose = require('mongoose')
 const Contact = require('./models/contacts')
 
+require('dotenv').config()
+
 const app = express()
 
 app.use(express.json())
 
-const uri = "mongodb+srv://anand14901:wXvLTncXknWKyVgZ@cluster0.uvw6nph.mongodb.net/contacts-db?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGO_URI;
 
 mongoose.connect(uri)
     .then(()=> console.log('connected to database!'))
@@ -20,11 +22,24 @@ app.get('/', (request, response) => {
 
 app.get('/api/contacts', async(request, response) => {
     try{
-        const contacts = await Contact.find({})
-        return response.json(contacts)
+        const page = parseInt(request.query.page) || 1
+        const limit = parseInt(request.query.limit) || 10
+        const skip = (page -1) * limit
+        const contacts = await Contact.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+        const totalContacts = await Contact.countDocuments({ isDeleted: { $ne: true } })
+        const totalPages = Math.ceil(totalContacts / limit)
+        return response.json({
+            contacts,
+            metadata:{
+                totalContacts,
+                currentPage:page,
+                limit:limit,
+                totalPages:totalPages
+            }
+        })
     }catch(error){
         return response.status(500).json({
-            error: 'Server error',
+            error: 'Server error', 
             message: 'Could not fetch contacts'
         })
     }
@@ -53,10 +68,21 @@ app.get('/api/contacts/:id', async(request, response) => {
 app.delete('/api/contacts/:id', async(request, response) => {
     try{
         const id = request.params.id
-        const contact = await Contact.findByIdAndDelete(id)
+        const contact = await Contact.findByIdAndUpdate(id,
+            {
+            isDeleted: true,
+            deletedAt: new Date().toISOString()
+            },
+            {new: true}
+        )                        
 
         if (contact){
-            response.status(204).end()
+           return response.status(200).json(
+                {
+                    message: 'Contact deleted successfully',
+                    deletedContact: contact
+                }
+            )
         }else{
             return response.status(404).json({
                     error: 'Contact not found',

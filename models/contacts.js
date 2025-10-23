@@ -25,7 +25,14 @@ const contactSchema = new mongoose.Schema({
     },
     lastUpdatedAt:{
         type: Date,
-    } 
+    },
+        isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    deletedAt: {
+        type: Date,
+    }
 },{
     versionKey: false
 })
